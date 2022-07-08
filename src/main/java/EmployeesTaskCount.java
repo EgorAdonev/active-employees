@@ -1,54 +1,99 @@
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 public class EmployeesTaskCount {
-
-    public static int activeEmployeeInTask(List<HashMap<String,String>> taskList){
-        int countEmployee = 0;
-        String employee = null;
-        String nextEmployee = null;
-        Iterator<HashMap<String, String>> iterator = taskList.iterator();
-//        while(iterator.hasNext()) {
-        for (int i = 0; i < taskList.size(); i++) {
-            HashMap<String, String> taskMap = taskList.get(i);
-            HashMap<String, String> taskMapNext = null;
-            if (i + 1 != taskList.size() - 1) {
-                taskMapNext = taskList.get(i + 1);
+    private static int activeEmployeesInTasks(List<HashMap<String, String>> taskList){
+        Iterator<HashMap<String, String>> iter = taskList.iterator();
+        int i = 0;
+        AtomicInteger count = new AtomicInteger();
+        while(iter.hasNext()) {
+//            Set<HashMap.Entry<String, String>> taskEntrySet = taskList.get(i).entrySet();
+            HashMap<String, String> map = taskList.get(i);
+            HashMap<String, String> lastMap = taskList.get(taskList.size() - 1);
+            if (i + 1 == taskList.size()) break;
+            HashMap<String, String> nextMap = taskList.get(i + 1);
+            if(taskList.size()%2==1){
+            Map<String, Boolean> lastResult = areEqualKeyValues(map, lastMap);
+//            if (i == 0) {
+//                lastResult = areEqualKeyValues(map, lastMap);
+//            }
+            Map<String, Boolean> result = areEqualKeyValues(map, nextMap);
+            System.out.println(result + "\n" + lastResult);
+                if(result.get("task_state") && !result.get("assignee_id")){
+//                    if(i == 0) {
+//                        count.getAndIncrement();
+//                    }
+                    count.getAndIncrement();
+                }
+            // ^ - исключающее или
+            if ((result.get("task_state") ^ lastResult.get("task_state")) && !result.get("assignee_id")) {
+                count.getAndIncrement();
             }
-            Set<Map.Entry<String, String>> taskEntrySet = taskMap.entrySet();
-            Set<Map.Entry<String, String>> taskEntrySetNext = taskMapNext.entrySet();
-            for (Map.Entry<String, String> taskEntry : taskEntrySet) {
-                for (Map.Entry<String, String> taskEntryNext : taskEntrySetNext) {
-                    if (taskEntry.getKey().equals("assignee_id")) {
-                        employee = taskEntry.getValue();
-                        nextEmployee = taskEntryNext.getValue();
-                    }
-                    if (taskEntry.getKey().equals("task_state")) {
-                        String state = taskEntry.getValue();
-                        if (state.equals("active") && !employee.equals(nextEmployee)) {
-                            countEmployee++;
-                        }
-                    }
+            if (!lastResult.get("assignee_id") && !lastResult.get("task_state")) {
+                count.getAndIncrement();
+            }
+            if((!result.get("task_state")||result.get("task_state"))&&result.get("assignee_id")){
+                count.getAndIncrement();
+            }
+
+        } else {
+                Map<String, Boolean> result = areEqualKeyValues(map, nextMap);
+                if(result.get("task_state") && !result.get("assignee_id")){
+                    count.getAndIncrement();
                 }
             }
+            i++;
         }
-        return countEmployee;
+        return count.get();
     }
-
+    private static Map<String,Boolean> areEqualKeyValues(HashMap<String, String> first, HashMap<String, String> second){
+        for (Map.Entry<String, String> e : first.entrySet()) {
+            if(e.getKey() == null){
+                Map<String, Boolean> m = new HashMap<>();
+                m.put("assignee_id",Boolean.FALSE);
+                return m;
+            }
+        } for (Map.Entry<String, String> e : second.entrySet()) {
+            if(e.getKey() == null){
+                Map<String, Boolean> m = new HashMap<>();
+                m.put("assignee_id",Boolean.FALSE);
+                return m;
+            }
+        }
+            return first.entrySet().stream()
+                    .collect(Collectors.toMap(e -> e.getKey(),
+                            e -> e.getValue().equals(second.get(e.getKey())) && !(e.getValue() == null)));
+    }
     public static void main(String[] args) {
-        List<HashMap<String,String>> testList = new ArrayList<>();
-//        [, {task_id = 2, assignee_id = 002,
-//                task_state = active}, {task_id = 3, assignee_id = 001, task_state = active}}, {task_id = 4,
-//            assignee_id = 007, task_state = disabled}];
-        HashMap<String,String> taskIdMap = new HashMap<>();
-        taskIdMap.put("task_id","1");
-        HashMap<String,String> assigneeIdMap = new HashMap<>();
-        assigneeIdMap.put("assignee_id","001");
-        HashMap<String,String> taskStateMap = new HashMap<>();
-        taskStateMap.put("task_state","active");
-        testList.add(taskIdMap);
-        testList.add(assigneeIdMap);
-        testList.add(taskStateMap);
+        List<HashMap<String, String>> testTaskList = new ArrayList<>();
 
-        System.out.println(activeEmployeeInTask(testList));
+        LinkedHashMap<String, String> taskIdMap = new LinkedHashMap<>();
+        taskIdMap.put("task_id", "1");
+        taskIdMap.put("assignee_id", "001");
+        taskIdMap.put("task_state", "active");
+        testTaskList.add(taskIdMap);
+
+        HashMap<String, String> taskIdMap1 = new LinkedHashMap<>();
+        taskIdMap1.put("task_id", "2");
+        taskIdMap1.put("assignee_id", "002");
+        taskIdMap1.put("task_state", "active");
+        testTaskList.add(taskIdMap1);
+
+        HashMap<String, String> taskIdMap2 = new LinkedHashMap<>();
+        taskIdMap2.put("task_id", "3");
+        taskIdMap2.put("assignee_id", "001");
+        taskIdMap2.put("task_state", "active");
+        testTaskList.add(taskIdMap2);
+
+        HashMap<String, String> taskIdMap3 = new LinkedHashMap<>();
+        taskIdMap3.put("task_id", "4");
+        taskIdMap3.put("assignee_id", "007");
+        taskIdMap3.put("task_state", "disabled");
+        testTaskList.add(taskIdMap3);
+
+        System.out.println(testTaskList);
+
+        System.out.println(activeEmployeesInTasks(testTaskList));
     }
 }
